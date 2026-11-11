@@ -3,11 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://xykqaazhhypccxudbxga.supabase.co wss://xykqaazhhypccxudbxga.supabase.co; img-src 'self' data: blob: https:; media-src https://xykqaazhhypccxudbxga.supabase.co blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://xykqaazhhypccxudbxga.supabase.co wss://xykqaazhhypccxudbxga.supabase.co; img-src 'self' data: blob: https:; media-src https://xykqaazhhypccxudbxga.supabase.co blob:; object-src 'none'; base-uri 'none'; form-action 'self'">
 <meta name="referrer" content="no-referrer">
 <title>Painel Hipertrofia em Casa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;700&display=swap">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o" crossorigin="anonymous"></script>
 <style>
   /* Painel de edição do conteúdo do app. Mesma identidade do app (escura, amarelo). */
@@ -79,6 +80,7 @@
 <div id="toast" hidden></div>
 
 <script>
+const TURNSTILE_SITE_KEY = '0x4AAAAAAF9WT_9nz-wOWvEz';
 const SUPABASE_URL = 'https://xykqaazhhypccxudbxga.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Q3Pm52Hpr0llu4anwt3bxg_fZoPgjNp'; // chave pública
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -131,15 +133,28 @@ function renderLogin(mode = 'entrar') {
       <p class="muted">${signup ? 'Use o e-mail de administrador e crie uma senha.' : 'Acesso do administrador.'}</p>
       <label>E-mail<input id="le" type="email" autocomplete="email" required></label>
       <label>Senha<input id="lp" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required></label>
+      <div id="lcap" style="min-height:70px"></div>
       <button class="btn" type="submit">${signup ? 'Criar acesso' : 'Entrar'}</button>
       <p class="muted" id="lmsg"></p>
       <button class="btn ghost small" type="button" id="lswap">${signup ? 'Já tenho acesso' : 'Primeiro acesso? Criar senha'}</button>
     </form>`;
   $('#lswap').onclick = () => renderLogin(signup ? 'entrar' : 'criar');
+  // Captcha contra robôs (Cloudflare Turnstile). O token vale para uma tentativa só.
+  let captchaToken = null, capId = null;
+  const mountCaptcha = () => {
+    if (!window.turnstile) return setTimeout(mountCaptcha, 300);
+    capId = window.turnstile.render('#lcap', { sitekey: TURNSTILE_SITE_KEY, theme: 'dark', language: 'pt-br',
+      callback: (t) => (captchaToken = t), 'expired-callback': () => (captchaToken = null) });
+  };
+  mountCaptcha();
   $('#lf').onsubmit = async (e) => {
     e.preventDefault();
     const email = $('#le').value.trim(), password = $('#lp').value;
-    const r = signup ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (!captchaToken) return ($('#lmsg').textContent = 'Aguarde a verificação de segurança terminar.');
+    const options = { captchaToken };
+    const r = signup ? await sb.auth.signUp({ email, password, options }) : await sb.auth.signInWithPassword({ email, password, options });
+    captchaToken = null;
+    if (window.turnstile && capId) window.turnstile.reset(capId);
     if (r.error) return ($('#lmsg').textContent = r.error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : r.error.message);
     if (signup && !r.data.session) return ($('#lmsg').textContent = 'Enviamos um e-mail de confirmação. Clique no link do e-mail e depois entre aqui.');
     boot();
