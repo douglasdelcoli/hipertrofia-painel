@@ -194,10 +194,11 @@ function questionEditor(q) {
         <span class="row"><button class="btn ghost small" data-up="${i}">↑</button><button class="btn ghost small" data-down="${i}">↓</button><button class="btn danger small" data-del="${i}">Remover</button></span></div>
       ${ltext('o' + i, o.label)}
       <div class="grid4">
-        <label>Nível inicial<select id="o${i}-lvl">${opts({ '': '—', 0: 'Iniciante', 1: 'Intermediário', 2: 'Avançado' }, String(o.effects?.levelIndex ?? ''))}</select></label>
+        <label>Nível inicial<select id="o${i}-lvl">${opts({ '': '—', l0: 'Iniciante', l1: 'Intermediário', l2: 'Avançado' }, o.effects?.levelIndex !== undefined ? 'l' + o.effects.levelIndex : '')}</select></label>
         <label>Modelo<select id="o${i}-model">${opts({ '': '—', fullbody: 'Full body', abc: 'Tradicional (ABC)' }, o.effects?.model ?? '')}</select></label>
         <label>Programa<select id="o${i}-sex">${opts({ '': '—', male: 'Masculino', female: 'Feminino' }, o.effects?.sex ?? '')}</select></label>
         <label>Equipamento<select id="o${i}-eq">${opts({ '': '—', ...EQUIP, none: 'Nenhum' }, o.effects?.equipment ? (o.effects.equipment[0] ?? 'none') : '')}</select></label>
+        <label>Dias por semana<select id="o${i}-days">${opts({ '': '—', d3: '3 dias', d4: '4 dias', d5: '5 dias' }, o.effects?.daysPerWeek ? 'd' + o.effects.daysPerWeek : '')}</select></label>
       </div>
     </div>`;
   box.innerHTML = `
@@ -212,7 +213,7 @@ function questionEditor(q) {
         <label class="row" style="text-transform:none"><input id="qgoal" type="checkbox" style="width:auto" ${q.is_goal ? 'checked' : ''}> É o "objetivo" do plano</label>
         <label class="row" style="text-transform:none"><input id="qact" type="checkbox" style="width:auto" ${q.active ? 'checked' : ''}> Mostrar no app</label>
       </div>
-      <p class="muted">Os efeitos de cada opção montam o plano: nível inicial, modelo (Full body ou ABC), programa masculino ou feminino e equipamento.</p>
+      <p class="muted">Os efeitos de cada opção montam o plano: nível inicial, modelo (Full body ou ABC), programa masculino ou feminino, equipamento e dias por semana.</p>
       <div id="optlist" style="display:grid;gap:10px">${q.kind === 'text' ? '' : q.options.map(optHtml).join('')}</div>
       <div class="row">${q.kind === 'text' ? '' : '<button class="btn ghost" id="addopt">+ Opção</button>'}</div>
       <div class="row"><button class="btn" id="qsave">Salvar pergunta</button><button class="btn danger" id="qdel">Excluir pergunta</button></div>
@@ -222,7 +223,8 @@ function questionEditor(q) {
     q.kind = $('#qkind').value; q.is_goal = $('#qgoal').checked; q.active = $('#qact').checked;
     q.options = q.options.map((o, i) => {
       const fx = {}; const lvl = $(`#o${i}-lvl`).value, m = $(`#o${i}-model`).value, s = $(`#o${i}-sex`).value, eq = $(`#o${i}-eq`).value;
-      if (lvl !== '') fx.levelIndex = Number(lvl); if (m) fx.model = m; if (s) fx.sex = s; if (eq) fx.equipment = eq === 'none' ? [] : [eq];
+      const dd = $(`#o${i}-days`).value; if (dd) fx.daysPerWeek = Number(dd.slice(1));
+      if (lvl !== '') fx.levelIndex = Number(lvl.slice(1)); if (m) fx.model = m; if (s) fx.sex = s; if (eq) fx.equipment = eq === 'none' ? [] : [eq];
       return { ...o, label: readL('o' + i), effects: Object.keys(fx).length ? fx : null };
     });
   };
