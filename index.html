@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Hipertrofia em Casa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+  /* Painel de edição do conteúdo do app. Mesma identidade do app (escura, amarelo). */
+  :root {
+    --bg: #121317; --surface: #1c1d22; --surface2: #24252b; --line: #2c2d33; --line2: #3a3b41;
+    --text: #f4efe6; --soft: #c9c6bf; --muted: #a5a6ab; --yellow: #f2c230; --ink: #1a1300;
+    --ok: #4cc38a; --danger: #ff8a80; --warn: #f5d9bf;
+    --display: 'Anton', Impact, sans-serif; --body: 'DM Sans', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 var(--body); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--yellow); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 12px max(16px, env(safe-area-inset-left)); display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .brand { font-family: var(--display); font-size: 22px; letter-spacing: .5px; text-transform: uppercase; }
+  .brand b { color: var(--yellow); font-weight: 400; }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+  nav button { background: none; border: 1px solid var(--line2); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  nav button[aria-current="true"] { background: var(--yellow); color: var(--ink); border-color: var(--yellow); font-weight: 700; }
+  main { padding: 16px max(16px, env(safe-area-inset-left)) 80px; max-width: 1200px; margin: 0 auto; }
+  .split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+  .list { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-height: 75vh; overflow-y: auto; }
+  .list button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 10px 14px; cursor: pointer; }
+  .list button:hover, .list button[aria-current="true"] { background: var(--surface2); }
+  .list small { color: var(--muted); display: block; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 760px) { .grid4 { grid-template-columns: 1fr 1fr; } }
+  label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  input, select, textarea { background: var(--bg); border: 1px solid var(--line2); border-radius: 10px; padding: 8px 10px; min-width: 0; width: 100%; text-transform: none; letter-spacing: 0; font-size: 14px; }
+  textarea { min-height: 54px; resize: vertical; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 1px; }
+  .btn { background: var(--yellow); color: var(--ink); border: 0; border-radius: 10px; padding: 9px 16px; font-weight: 700; cursor: pointer; }
+  .btn.ghost { background: none; color: var(--text); border: 1px solid var(--line2); font-weight: 500; }
+  .btn.danger { background: none; color: var(--danger); border: 1px solid #5a2f2c; font-weight: 500; }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+  h2 { font-family: var(--display); font-weight: 400; text-transform: uppercase; font-size: 26px; margin: 0; letter-spacing: .4px; }
+  h3 { margin: 0; font-size: 16px; }
+  .muted { color: var(--muted); }
+  .opt { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 8px; background: var(--bg); }
+  .item { display: grid; grid-template-columns: 34px minmax(0, 2.2fr) 70px minmax(0, 1fr) 110px 90px auto; gap: 6px; align-items: center; }
+  @media (max-width: 900px) { .item { grid-template-columns: 34px minmax(0, 1fr) 70px minmax(0, 1fr); } }
+  .item .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .sec { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--yellow); margin-top: 8px; }
+  #toast { position: fixed; bottom: max(16px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); background: var(--surface2);
+    border: 1px solid var(--line2); border-radius: 12px; padding: 10px 16px; z-index: 20; }
+  .login { max-width: 380px; margin: 10vh auto; }
+  .tag { font-size: 12px; border: 1px solid var(--line2); border-radius: 999px; padding: 2px 8px; color: var(--soft); }
+  .tag.off { color: var(--danger); border-color: #5a2f2c; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>Hipertrofia</b> em Casa · Painel</div>
+  <nav id="tabs" hidden>
+    <button data-tab="anamnese" aria-current="true">Anamnese</button>
+    <button data-tab="exercicios">Exercícios</button>
+    <button data-tab="programas">Treinos</button>
+    <button data-tab="vitalicios">Alunos vitalícios</button>
+  </nav>
+  <div id="who" class="row muted" hidden></div>
+</header>
+<main id="app"><p class="muted">Carregando…</p></main>
+<div id="toast" hidden></div>
+
+<script>
+const SUPABASE_URL = 'https://xykqaazhhypccxudbxga.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Q3Pm52Hpr0llu4anwt3bxg_fZoPgjNp'; // chave pública
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const LOC = ['pt', 'es', 'en', 'de'];
+const LOC_NAME = { pt: 'Português', es: 'Español', en: 'English', de: 'Deutsch' };
+const GROUPS = { chest: 'Peito', back: 'Costas', shoulders: 'Ombro', biceps: 'Bíceps', triceps: 'Tríceps', forearms: 'Antebraço',
+  quads: 'Quadríceps', hamstrings: 'Posterior de coxa', calves: 'Panturrilha', glutes: 'Glúteo máximo', glutes_med: 'Glúteo médio',
+  adductors: 'Adutores', abs: 'Abdômen', core: 'Core', mobility: 'Mobilidade' };
+const EQUIP = { bands: 'Super band', miniband: 'Mini band', anchor: 'Ancoragem de porta', pullup: 'Barra fixa de porta' };
+const AREAS = { knee: 'Joelho', shoulder: 'Ombro', lowerBack: 'Lombar' };
+const TIERS = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' };
+const SECTIONS = { mobility: 'Mobilidade', core: 'Abdômen e core', main: 'Treino' };
+const SIDES = { '': '—', leg: 'cada perna', arm: 'cada braço', side: 'cada lado' };
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const slug = (s) => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 3200); }
+function opts(map, val) { return Object.entries(map).map(([k, v]) => `<option value="${esc(k)}" ${k === val ? 'selected' : ''}>${esc(v)}</option>`).join(''); }
+function ltext(prefix, val = {}) {
+  return `<div class="grid4">${LOC.map((l) => `<label>${LOC_NAME[l]}<input id="${prefix}-${l}" value="${esc(val?.[l] ?? '')}"></label>`).join('')}</div>`;
+}
+function readL(prefix, root = document) { const o = {}; LOC.forEach((l) => (o[l] = $(`#${prefix}-${l}`, root)?.value.trim() ?? '')); return o; }
+
+let state = { tab: 'anamnese', questions: [], exercises: [], programs: [], lifetime: [], sel: {} };
+
+/* ---------- Login ---------- */
+async function boot() {
+  const { data } = await sb.auth.getSession();
+  if (!data.session) return renderLogin();
+  const { data: isAdmin } = await sb.rpc('is_admin');
+  $('#who').hidden = false;
+  $('#who').innerHTML = `${esc(data.session.user.email)} <button class="btn ghost small" id="out">Sair</button>`;
+  $('#out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  if (!isAdmin) {
+    $('#app').innerHTML = `<div class="card login"><h2>Quase lá</h2><p>Sua conta foi criada, mas ainda não tem permissão de administrador. Avise o Claude para liberar o acesso de <b>${esc(data.session.user.email)}</b>.</p></div>`;
+    return;
+  }
+  $('#tabs').hidden = false;
+  document.querySelectorAll('#tabs button').forEach((b) => (b.onclick = () => go(b.dataset.tab)));
+  await loadAll();
+  go(location.hash.slice(1) || 'anamnese');
+}
+
+function renderLogin(mode = 'entrar') {
+  const signup = mode === 'criar';
+  $('#app').innerHTML = `
+    <form class="card login" id="lf">
+      <h2>${signup ? 'Criar acesso' : 'Entrar'}</h2>
+      <p class="muted">${signup ? 'Use o e-mail de administrador e crie uma senha.' : 'Acesso do administrador.'}</p>
+      <label>E-mail<input id="le" type="email" autocomplete="email" required></label>
+      <label>Senha<input id="lp" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="8" required></label>
+      <button class="btn" type="submit">${signup ? 'Criar acesso' : 'Entrar'}</button>
+      <p class="muted" id="lmsg"></p>
+      <button class="btn ghost small" type="button" id="lswap">${signup ? 'Já tenho acesso' : 'Primeiro acesso? Criar senha'}</button>
+    </form>`;
+  $('#lswap').onclick = () => renderLogin(signup ? 'entrar' : 'criar');
+  $('#lf').onsubmit = async (e) => {
+    e.preventDefault();
+    const email = $('#le').value.trim(), password = $('#lp').value;
+    const r = signup ? await sb.auth.signUp({ email, password }) : await sb.auth.signInWithPassword({ email, password });
+    if (r.error) return ($('#lmsg').textContent = r.error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : r.error.message);
+    if (signup && !r.data.session) return ($('#lmsg').textContent = 'Enviamos um e-mail de confirmação. Clique no link do e-mail e depois entre aqui.');
+    boot();
+  };
+}
+
+/* ---------- Dados ---------- */
+async function loadAll() {
+  const [q, e, p, v] = await Promise.all([
+    sb.from('anamnese_questions').select('*, options:anamnese_options(*)').order('position'),
+    sb.from('exercises').select('*').order('id'),
+    sb.from('programs').select('*').order('id'),
+    sb.from('lifetime_access').select('*').order('granted_at', { ascending: false }),
+  ]);
+  for (const r of [q, e, p, v]) if (r.error) toast('Erro ao carregar: ' + r.error.message);
+  state.questions = (q.data ?? []).map((x) => ({ ...x, options: (x.options ?? []).sort((a, b) => a.position - b.position) }));
+  state.exercises = e.data ?? [];
+  state.programs = p.data ?? [];
+  state.lifetime = v.data ?? [];
+}
+const exName = (id) => state.exercises.find((x) => x.id === id)?.name?.pt ?? id;
+
+function go(tab) {
+  state.tab = tab;
+  location.hash = tab;
+  document.querySelectorAll('#tabs button').forEach((b) => b.setAttribute('aria-current', String(b.dataset.tab === tab)));
+  ({ anamnese: renderQuestions, exercicios: renderExercises, programas: renderPrograms, vitalicios: renderLifetime }[tab] ?? renderQuestions)();
+}
+
+/* ---------- Anamnese ---------- */
+function renderQuestions() {
+  const qs = state.questions;
+  const sel = qs.find((x) => x.id === state.sel.q) ?? qs[0];
+  $('#app').innerHTML = `
+    <div class="split">
+      <div class="list">${qs.map((x, i) => `<button data-id="${esc(x.id)}" aria-current="${x === sel}">${i + 1}. ${esc(x.title?.pt)}<small>${x.kind === 'single' ? 'Uma opção' : x.kind === 'multi' ? 'Várias opções' : 'Texto'}${x.active ? '' : ' · desativada'}</small></button>`).join('')}
+        <button id="qnew"><b>+ Nova pergunta</b></button></div>
+      <div id="qed"></div>
+    </div>`;
+  document.querySelectorAll('.list button[data-id]').forEach((b) => (b.onclick = () => { state.sel.q = b.dataset.id; renderQuestions(); }));
+  $('#qnew').onclick = () => {
+    const id = 'q' + Date.now().toString(36);
+    state.questions.push({ id, position: qs.length, kind: 'single', title: { pt: 'Nova pergunta', es: '', en: '', de: '' }, help: null, is_goal: false, active: true, options: [], _new: true });
+    state.sel.q = id; renderQuestions();
+  };
+  if (sel) questionEditor(sel);
+}
+
+function questionEditor(q) {
+  const box = $('#qed');
+  const optHtml = (o, i) => `
+    <div class="opt" data-i="${i}">
+      <div class="row" style="justify-content:space-between"><b>Opção ${i + 1}</b>
+        <span class="row"><button class="btn ghost small" data-up="${i}">↑</button><button class="btn ghost small" data-down="${i}">↓</button><button class="btn danger small" data-del="${i}">Remover</button></span></div>
+      ${ltext('o' + i, o.label)}
+      <div class="grid4">
+        <label>Nível inicial<select id="o${i}-lvl">${opts({ '': '—', 0: 'Iniciante', 1: 'Intermediário', 2: 'Avançado' }, String(o.effects?.levelIndex ?? ''))}</select></label>
+        <label>Modelo<select id="o${i}-model">${opts({ '': '—', fullbody: 'Full body', abc: 'Tradicional (ABC)' }, o.effects?.model ?? '')}</select></label>
+        <label>Programa<select id="o${i}-sex">${opts({ '': '—', male: 'Masculino', female: 'Feminino' }, o.effects?.sex ?? '')}</select></label>
+        <label>Equipamento<select id="o${i}-eq">${opts({ '': '—', ...EQUIP, none: 'Nenhum' }, o.effects?.equipment ? (o.effects.equipment[0] ?? 'none') : '')}</select></label>
+      </div>
+    </div>`;
+  box.innerHTML = `
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><h2>Pergunta</h2>
+        <span class="row"><span class="tag ${q.active ? '' : 'off'}">${q.active ? 'Ativa' : 'Desativada'}</span></span></div>
+      <label>Texto da pergunta</label>${ltext('qt', q.title)}
+      <label>Ajuda (opcional)</label>${ltext('qh', q.help ?? {})}
+      <div class="row">
+        <label style="min-width:200px">Tipo<select id="qkind">${opts({ single: 'Escolhe uma opção', multi: 'Escolhe várias', text: 'Resposta escrita' }, q.kind)}</select></label>
+        <label style="min-width:200px">Posição<input id="qpos" type="number" min="1" value="${state.questions.indexOf(q) + 1}"></label>
+        <label class="row" style="text-transform:none"><input id="qgoal" type="checkbox" style="width:auto" ${q.is_goal ? 'checked' : ''}> É o "objetivo" do plano</label>
+        <label class="row" style="text-transform:none"><input id="qact" type="checkbox" style="width:auto" ${q.active ? 'checked' : ''}> Mostrar no app</label>
+      </div>
+      <p class="muted">Os efeitos de cada opção montam o plano: nível inicial, modelo (Full body ou ABC), programa masculino ou feminino e equipamento.</p>
+      <div id="optlist" style="display:grid;gap:10px">${q.kind === 'text' ? '' : q.options.map(optHtml).join('')}</div>
+      <div class="row">${q.kind === 'text' ? '' : '<button class="btn ghost" id="addopt">+ Opção</button>'}</div>
+      <div class="row"><button class="btn" id="qsave">Salvar pergunta</button><button class="btn danger" id="qdel">Excluir pergunta</button></div>
+    </div>`;
+  const collect = () => {
+    q.title = readL('qt'); const h = readL('qh'); q.help = Object.values(h).some(Boolean) ? h : null;
+    q.kind = $('#qkind').value; q.is_goal = $('#qgoal').checked; q.active = $('#qact').checked;
+    q.options = q.options.map((o, i) => {
+      const fx = {}; const lvl = $(`#o${i}-lvl`).value, m = $(`#o${i}-model`).value, s = $(`#o${i}-sex`).value, eq = $(`#o${i}-eq`).value;
+      if (lvl !== '') fx.levelIndex = Number(lvl); if (m) fx.model = m; if (s) fx.sex = s; if (eq) fx.equipment = eq === 'none' ? [] : [eq];
+      return { ...o, label: readL('o' + i), effects: Object.keys(fx).length ? fx : null };
+    });
+  };
+  box.querySelectorAll('[data-del]').forEach((b) => (b.onclick = () => { collect(); q.options.splice(+b.dataset.del, 1); questionEditor(q); }));
+  box.querySelectorAll('[data-up]').forEach((b) => (b.onclick = () => { collect(); const i = +b.dataset.up; if (i > 0) [q.options[i - 1], q.options[i]] = [q.options[i], q.options[i - 1]]; questionEditor(q); }));
+  box.querySelectorAll('[data-down]').forEach((b) => (b.onclick = () => { collect(); const i = +b.dataset.down; if (i < q.options.length - 1) [q.options[i + 1], q.options[i]] = [q.options[i], q.options[i + 1]]; questionEditor(q); }));
+  $('#addopt') && ($('#addopt').onclick = () => { collect(); q.options.push({ id: 'o' + Date.now().toString(36), label: { pt: '', es: '', en: '', de: '' }, effects: null }); questionEditor(q); });
+  $('#qdel').onclick = async () => {
+    if (!box.dataset.confirm) { box.dataset.confirm = '1'; $('#qdel').textContent = 'Clique de novo para excluir'; return; }
+    if (!q._new) { const r = await sb.from('anamnese_questions').delete().eq('id', q.id); if (r.error) return toast(r.error.message); }
+    state.questions = state.questions.filter((x) => x !== q); state.sel.q = null; toast('Pergunta excluída'); renderQuestions();
+  };
+  $('#qsave').onclick = async () => {
+    collect();
+    if (!q.title.pt) return toast('Escreva a pergunta em português.');
+    const newPos = Math.max(1, Math.min(state.questions.length, Number($('#qpos').value) || 1)) - 1;
+    state.questions.splice(state.questions.indexOf(q), 1); state.questions.splice(newPos, 0, q);
+    const rows = state.questions.map((x, i) => ({ id: x.id, position: i, kind: x.kind, title: x.title, help: x.help, is_goal: x.is_goal, active: x.active }));
+    let r = await sb.from('anamnese_questions').upsert(rows);
+    if (r.error) return toast('Erro: ' + r.error.message);
+    r = await sb.from('anamnese_options').delete().eq('question_id', q.id);
+    if (r.error) return toast('Erro: ' + r.error.message);
+    if (q.kind !== 'text' && q.options.length) {
+      r = await sb.from('anamnese_options').insert(q.options.map((o, i) => ({ question_id: q.id, id: o.id, position: i, label: o.label, effects: o.effects })));
+      if (r.error) return toast('Erro: ' + r.error.message);
+    }
+    delete q._new; toast('Salvo. O app já usa a versão nova.'); renderQuestions();
+  };
+}
+
+/* ---------- Exercícios ---------- */
+function renderExercises() {
+  const f = state.sel.ef ?? '', g = state.sel.eg ?? '';
+  const list = state.exercises.filter((x) => (!g || x.muscle_group === g) && (!f || (x.name?.pt ?? '').toLowerCase().includes(f.toLowerCase())));
+  const sel = state.exercises.find((x) => x.id === state.sel.e) ?? list[0];
+  $('#app').innerHTML = `
+    <div class="split">
+      <div style="display:grid;gap:8px">
+        <input id="ef" placeholder="Buscar exercício" value="${esc(f)}">
+        <select id="eg"><option value="">Todos os grupos</option>${opts(GROUPS, g)}</select>
+        <div class="list">${list.map((x) => `<button data-id="${esc(x.id)}" aria-current="${x === sel}">${esc(x.name?.pt)}<small>${esc(GROUPS[x.muscle_group] ?? x.muscle_group)}${x.video_explain_path ? '' : ' · sem vídeo'}${x.active ? '' : ' · desativado'}</small></button>`).join('')}
+          <button id="enew"><b>+ Novo exercício</b></button></div>
+      </div>
+      <div id="eed"></div>
+    </div>`;
+  $('#ef').oninput = (e) => { state.sel.ef = e.target.value; const pos = e.target.selectionStart; renderExercises(); const n = $('#ef'); n.focus(); n.setSelectionRange(pos, pos); };
+  $('#eg').onchange = (e) => { state.sel.eg = e.target.value; renderExercises(); };
+  document.querySelectorAll('.list button[data-id]').forEach((b) => (b.onclick = () => { state.sel.e = b.dataset.id; renderExercises(); }));
+  $('#enew').onclick = () => {
+    const x = { id: '', name: { pt: '', es: '', en: '', de: '' }, muscle_group: g || 'chest', equipment: [], avoid_for: [], safer_id: null, video_explain_path: null, video_exec_path: null, active: true, _new: true };
+    state.exercises.unshift(x); state.sel.e = ''; renderExercises();
+  };
+  if (sel) exerciseEditor(sel);
+}
+
+function exerciseEditor(x) {
+  $('#eed').innerHTML = `
+    <div class="card">
+      <h2>${x._new ? 'Novo exercício' : 'Exercício'}</h2>
+      <label>Nome</label>${ltext('en', x.name)}
+      <div class="grid4">
+        <label>Grupo muscular<select id="egrp">${opts(GROUPS, x.muscle_group)}</select></label>
+        <label>Código<input id="eid" value="${esc(x.id)}" ${x._new ? '' : 'disabled'} placeholder="gerado pelo nome"></label>
+        <label>Alternativa segura<select id="esafe"><option value="">—</option>${state.exercises.filter((o) => o.id && o.id !== x.id).map((o) => `<option value="${esc(o.id)}" ${o.id === x.safer_id ? 'selected' : ''}>${esc(o.name?.pt)}</option>`).join('')}</select></label>
+        <label class="row" style="text-transform:none;align-self:end"><input id="eact" type="checkbox" style="width:auto" ${x.active ? 'checked' : ''}> Mostrar no app</label>
+      </div>
+      <label>Equipamentos</label>
+      <div class="row">${Object.entries(EQUIP).map(([k, v]) => `<label class="row" style="text-transform:none"><input type="checkbox" style="width:auto" data-eq="${k}" ${x.equipment?.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
+      <label>Não indicado para (troca pela alternativa segura)</label>
+      <div class="row">${Object.entries(AREAS).map(([k, v]) => `<label class="row" style="text-transform:none"><input type="checkbox" style="width:auto" data-av="${k}" ${x.avoid_for?.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
+      <div class="grid4" style="grid-template-columns:1fr 1fr">
+        <label>Vídeo de explicação<input id="ev1" value="${esc(x.video_explain_path ?? '')}" placeholder="Pasta/arquivo.MOV"></label>
+        <label>Vídeo de execução<input id="ev2" value="${esc(x.video_exec_path ?? '')}" placeholder="Pasta/arquivo 2.MOV"></label>
+      </div>
+      <div class="row"><button class="btn" id="esave">Salvar exercício</button></div>
+    </div>`;
+  $('#esave').onclick = async () => {
+    const name = readL('en');
+    if (!name.pt) return toast('Escreva o nome em português.');
+    const id = x._new ? ($('#eid').value.trim() || slug(name.pt)) : x.id;
+    if (x._new && state.exercises.some((o) => o.id === id && o !== x)) return toast('Já existe um exercício com esse código.');
+    const row = { id, name, muscle_group: $('#egrp').value, safer_id: $('#esafe').value || null, active: $('#eact').checked,
+      equipment: [...document.querySelectorAll('[data-eq]:checked')].map((c) => c.dataset.eq),
+      avoid_for: [...document.querySelectorAll('[data-av]:checked')].map((c) => c.dataset.av),
+      video_explain_path: $('#ev1').value.trim() || null, video_exec_path: $('#ev2').value.trim() || null };
+    const r = await sb.from('exercises').upsert(row);
+    if (r.error) return toast('Erro: ' + r.error.message);
+    Object.assign(x, row); delete x._new; state.sel.e = id; toast('Exercício salvo.'); renderExercises();
+  };
+}
+
+/* ---------- Treinos ---------- */
+function renderPrograms() {
+  const ps = state.programs;
+  const sel = ps.find((x) => x.id === state.sel.p) ?? ps[0];
+  const label = (p) => `${p.model === 'fullbody' ? 'Full body' : 'Tradicional'} ${p.sex === 'male' ? 'masculino' : 'feminino'} · ${TIERS[p.tier]}`;
+  $('#app').innerHTML = `
+    <div class="split">
+      <div class="list">${ps.map((p) => `<button data-id="${esc(p.id)}" aria-current="${p === sel}">${esc(label(p))}<small>${p.workouts.length} treinos · ${p.min_months} a ${p.max_months} meses</small></button>`).join('')}</div>
+      <div id="ped"></div>
+    </div>`;
+  document.querySelectorAll('.list button[data-id]').forEach((b) => (b.onclick = () => { state.sel.p = b.dataset.id; state.sel.w = 0; renderPrograms(); }));
+  if (sel) programEditor(sel, label(sel));
+}
+
+function programEditor(p, title) {
+  const wi = Math.min(state.sel.w ?? 0, p.workouts.length - 1);
+  const w = p.workouts[wi];
+  const exOptions = (id) => state.exercises.map((o) => `<option value="${esc(o.id)}" ${o.id === id ? 'selected' : ''}>${esc(o.name?.pt)}</option>`).join('');
+  let lastSec = '';
+  const items = w.items.map((it, i) => {
+    const head = it.section !== lastSec ? `<div class="sec">${SECTIONS[it.section]}</div>` : ''; lastSec = it.section;
+    return `${head}<div class="item" data-i="${i}">
+      <span class="n">${i + 1}</span>
+      <select data-f="exerciseId" aria-label="Exercício">${exOptions(it.exerciseId)}</select>
+      <input data-f="sets" type="number" min="0" value="${esc(it.sets ?? '')}" aria-label="Séries" placeholder="Séries">
+      <input data-f="reps" value="${esc(it.reps)}" aria-label="Repetições" placeholder="Repetições">
+      <select data-f="side" aria-label="Lado">${opts(SIDES, it.side ?? '')}</select>
+      <select data-f="section" aria-label="Bloco">${opts(SECTIONS, it.section)}</select>
+      <span class="row"><label class="row" style="text-transform:none" title="Faz o próximo sem descanso"><input data-f="superset" type="checkbox" style="width:auto" ${it.superset ? 'checked' : ''}> bi-set</label>
+        <button class="btn ghost small" data-up="${i}" aria-label="Subir">↑</button><button class="btn ghost small" data-down="${i}" aria-label="Descer">↓</button><button class="btn danger small" data-del="${i}" aria-label="Remover">×</button></span>
+      <input data-f="variation" value="${esc(it.variation ?? '')}" placeholder="Variação (ex.: pegada supinada)" style="grid-column:2 / 4">
+      <input data-f="note" value="${esc(it.note ?? '')}" placeholder="Observação" style="grid-column:4 / -1">
+    </div>`;
+  }).join('');
+  $('#ped').innerHTML = `
+    <div class="card">
+      <h2>${esc(title)}</h2>
+      <div class="row">
+        <label style="width:120px">Mínimo (meses)<input id="pmin" type="number" min="1" value="${p.min_months}"></label>
+        <label style="width:120px">Máximo (meses)<input id="pmax" type="number" min="1" value="${p.max_months}"></label>
+      </div>
+      <nav class="row">${p.workouts.map((x, i) => `<button class="btn ${i === wi ? '' : 'ghost'} small" data-w="${i}">Treino ${esc(x.key)}</button>`).join('')}</nav>
+      <label>Nome do treino ${esc(w.key)}</label>${ltext('wt', w.title)}
+      <div style="display:grid;gap:6px" id="items">${items}</div>
+      <div class="row"><button class="btn ghost" id="additem">+ Exercício</button></div>
+      <div class="row"><button class="btn" id="psave">Salvar treinos</button><span class="muted">Salva todos os treinos deste programa.</span></div>
+    </div>`;
+  const collect = () => {
+    w.title = readL('wt');
+    document.querySelectorAll('#items .item').forEach((row) => {
+      const it = w.items[+row.dataset.i]; const g = (f) => row.querySelector(`[data-f="${f}"]`);
+      it.exerciseId = g('exerciseId').value; it.reps = g('reps').value.trim(); it.section = g('section').value;
+      const s = g('sets').value; if (s) it.sets = Number(s); else delete it.sets;
+      const sd = g('side').value; if (sd) it.side = sd; else delete it.side;
+      if (g('superset').checked) it.superset = true; else delete it.superset;
+      const v = g('variation').value.trim(); if (v) it.variation = v; else delete it.variation;
+      const n = g('note').value.trim(); if (n) it.note = n; else delete it.note;
+    });
+    p.min_months = Number($('#pmin').value) || p.min_months; p.max_months = Number($('#pmax').value) || p.max_months;
+  };
+  const again = () => programEditor(p, title);
+  document.querySelectorAll('[data-w]').forEach((b) => (b.onclick = () => { collect(); state.sel.w = +b.dataset.w; again(); }));
+  document.querySelectorAll('#items [data-del]').forEach((b) => (b.onclick = () => { collect(); w.items.splice(+b.dataset.del, 1); again(); }));
+  document.querySelectorAll('#items [data-up]').forEach((b) => (b.onclick = () => { collect(); const i = +b.dataset.up; if (i > 0) [w.items[i - 1], w.items[i]] = [w.items[i], w.items[i - 1]]; again(); }));
+  document.querySelectorAll('#items [data-down]').forEach((b) => (b.onclick = () => { collect(); const i = +b.dataset.down; if (i < w.items.length - 1) [w.items[i + 1], w.items[i]] = [w.items[i], w.items[i + 1]]; again(); }));
+  $('#additem').onclick = () => { collect(); w.items.push({ section: 'main', exerciseId: state.exercises[0]?.id, sets: 3, reps: '10 a 15' }); again(); };
+  $('#psave').onclick = async () => {
+    collect();
+    const r = await sb.from('programs').update({ workouts: p.workouts, min_months: p.min_months, max_months: p.max_months, updated_at: new Date().toISOString() }).eq('id', p.id);
+    if (r.error) return toast('Erro: ' + r.error.message);
+    toast('Treinos salvos.');
+  };
+}
+
+/* ---------- Alunos vitalícios ---------- */
+function renderLifetime() {
+  $('#app').innerHTML = `
+    <div class="split">
+      <div class="card">
+        <h2>Adicionar</h2>
+        <p class="muted">Cole os e-mails dos alunos (um por linha) ou o conteúdo do CSV exportado da Hotmart. O app libera o acesso completo para quem entrar com esses e-mails.</p>
+        <textarea id="lt" style="min-height:180px" placeholder="aluno@email.com"></textarea>
+        <button class="btn" id="ladd">Liberar acesso</button>
+      </div>
+      <div class="card">
+        <h2>${state.lifetime.length} alunos</h2>
+        <input id="lf" placeholder="Buscar e-mail">
+        <div id="ll" style="display:grid;gap:4px;max-height:60vh;overflow:auto"></div>
+      </div>
+    </div>`;
+  const draw = () => {
+    const f = $('#lf').value.toLowerCase();
+    $('#ll').innerHTML = state.lifetime.filter((x) => x.email.includes(f)).slice(0, 300)
+      .map((x) => `<div class="row" style="justify-content:space-between"><span>${esc(x.email)}</span><button class="btn danger small" data-rm="${esc(x.email)}">Remover</button></div>`).join('') || '<p class="muted">Nenhum aluno ainda.</p>';
+    document.querySelectorAll('[data-rm]').forEach((b) => (b.onclick = async () => {
+      const r = await sb.from('lifetime_access').delete().eq('email', b.dataset.rm);
+      if (r.error) return toast(r.error.message);
+      state.lifetime = state.lifetime.filter((x) => x.email !== b.dataset.rm); renderLifetime();
+    }));
+  };
+  $('#lf').oninput = draw; draw();
+  $('#ladd').onclick = async () => {
+    const emails = [...new Set(($('#lt').value.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []).map((e) => e.toLowerCase()))];
+    if (!emails.length) return toast('Nenhum e-mail encontrado no texto.');
+    const r = await sb.from('lifetime_access').upsert(emails.map((email) => ({ email, source: 'hotmart' })));
+    if (r.error) return toast('Erro: ' + r.error.message);
+    toast(`${emails.length} alunos liberados.`); await loadAll(); renderLifetime();
+  };
+}
+
+window.addEventListener('hashchange', () => { const t = location.hash.slice(1); if (t && t !== state.tab && !$('#tabs').hidden) go(t); });
+boot();
+</script>
+</body>
+</html>
