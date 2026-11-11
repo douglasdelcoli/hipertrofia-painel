@@ -85,7 +85,7 @@ const LOC_NAME = { pt: 'Português', es: 'Español', en: 'English', de: 'Deutsch
 const GROUPS = { chest: 'Peito', back: 'Costas', shoulders: 'Ombro', biceps: 'Bíceps', triceps: 'Tríceps', forearms: 'Antebraço',
   quads: 'Quadríceps', hamstrings: 'Posterior de coxa', calves: 'Panturrilha', glutes: 'Glúteo máximo', glutes_med: 'Glúteo médio',
   adductors: 'Adutores', abs: 'Abdômen', core: 'Core', mobility: 'Mobilidade' };
-const EQUIP = { bands: 'Super band', miniband: 'Mini band', anchor: 'Ancoragem de porta', pullup: 'Barra fixa de porta' };
+const EQUIP = { bands: 'Super band', anchor: 'Ancoragem de porta', pullup: 'Barra fixa de porta', ankle: 'Tornozeleira', miniband: 'Mini band' };
 const AREAS = { knee: 'Joelho', shoulder: 'Ombro', lowerBack: 'Lombar' };
 const TIERS = { beginner: 'Iniciante', intermediate: 'Intermediário', advanced: 'Avançado' };
 const SECTIONS = { mobility: 'Mobilidade', core: 'Abdômen e core', main: 'Treino' };
@@ -290,6 +290,7 @@ function exerciseEditor(x) {
         <label>Código<input id="eid" value="${esc(x.id)}" ${x._new ? '' : 'disabled'} placeholder="gerado pelo nome"></label>
         <label>Alternativa segura<select id="esafe"><option value="">—</option>${state.exercises.filter((o) => o.id && o.id !== x.id).map((o) => `<option value="${esc(o.id)}" ${o.id === x.safer_id ? 'selected' : ''}>${esc(o.name?.pt)}</option>`).join('')}</select></label>
         <label class="row" style="text-transform:none;align-self:end"><input id="eact" type="checkbox" style="width:auto" ${x.active ? 'checked' : ''}> Mostrar no app</label>
+        <label>Sem mini band, trocar por<select id="ealt"><option value="">—</option>${state.exercises.filter((o) => o.id && o.id !== x.id).map((o) => `<option value="${esc(o.id)}" ${o.id === x.alt_without?.miniband ? 'selected' : ''}>${esc(o.name?.pt)}</option>`).join('')}</select></label>
       </div>
       <label>Equipamentos</label>
       <div class="row">${Object.entries(EQUIP).map(([k, v]) => `<label class="row" style="text-transform:none"><input type="checkbox" style="width:auto" data-eq="${k}" ${x.equipment?.includes(k) ? 'checked' : ''}> ${v}</label>`).join('')}</div>
@@ -309,7 +310,8 @@ function exerciseEditor(x) {
     const row = { id, name, muscle_group: $('#egrp').value, safer_id: $('#esafe').value || null, active: $('#eact').checked,
       equipment: [...document.querySelectorAll('[data-eq]:checked')].map((c) => c.dataset.eq),
       avoid_for: [...document.querySelectorAll('[data-av]:checked')].map((c) => c.dataset.av),
-      video_explain_path: $('#ev1').value.trim() || null, video_exec_path: $('#ev2').value.trim() || null };
+      video_explain_path: $('#ev1').value.trim() || null, video_exec_path: $('#ev2').value.trim() || null,
+      alt_without: $('#ealt').value ? { miniband: $('#ealt').value } : null };
     const r = await sb.from('exercises').upsert(row);
     if (r.error) return toast('Erro: ' + r.error.message);
     Object.assign(x, row); delete x._new; state.sel.e = id; toast('Exercício salvo.'); renderExercises();
@@ -320,7 +322,7 @@ function exerciseEditor(x) {
 function renderPrograms() {
   const ps = state.programs;
   const sel = ps.find((x) => x.id === state.sel.p) ?? ps[0];
-  const label = (p) => `${p.model === 'fullbody' ? 'Full body' : 'Tradicional'} ${p.sex === 'male' ? 'masculino' : 'feminino'} · ${TIERS[p.tier]}`;
+  const label = (p) => p.model === 'bodyweight' ? 'Sem equipamento (enquanto o kit não chega)' : `${p.model === 'fullbody' ? 'Full body' : 'Tradicional'} ${p.sex === 'male' ? 'masculino' : 'feminino'} · ${TIERS[p.tier]}`;
   $('#app').innerHTML = `
     <div class="split">
       <div class="list">${ps.map((p) => `<button data-id="${esc(p.id)}" aria-current="${p === sel}">${esc(label(p))}<small>${p.workouts.length} treinos · ${p.min_months} a ${p.max_months} meses</small></button>`).join('')}</div>
